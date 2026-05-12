@@ -1,3 +1,7 @@
+// ==========================================
+// ALADINDOTCOM - PRODUCTS PAGE SCRIPT
+// ==========================================
+
 let currentUser = null;
 let allProducts = [];
 const urlParams = new URLSearchParams(location.search);
@@ -87,7 +91,7 @@ function renderProducts() {
 }
 
 function goToDetail(id) { window.location.href = 'product-detail.html?id=' + id; }
-function escapeStr(s) { return s.replace(/'/g,"\\'").replace(/"/g,'\\"'); }
+function escapeStr(s) { return s ? s.replace(/'/g,"\\'").replace(/"/g,'\\"') : ''; }
 
 function orderNow(id, title) {
   const phone = '15551234567';
@@ -106,13 +110,6 @@ document.querySelectorAll('.filter-btn').forEach(btn => {
 document.getElementById('productSearchBtn')?.addEventListener('click', () => {
   const q = document.getElementById('productSearchInput').value.trim();
   if(q) location.href = 'products.html?search=' + encodeURIComponent(q);
-});
-
-document.getElementById('productSearchInput')?.addEventListener('keypress', (e) => {
-  if (e.key === 'Enter') {
-    const q = e.target.value.trim();
-    if(q) location.href = 'products.html?search=' + encodeURIComponent(q);
-  }
 });
 
 document.getElementById('hamburgerBtn')?.addEventListener('click',()=>document.getElementById('navLinks').classList.toggle('show'));
