@@ -31,35 +31,9 @@ function loadProducts() {
   database.ref('products').once('value').then(snapshot => {
     const data = snapshot.val();
     allProducts = data ? Object.values(data) : [];
-    updatePageHeader();
     renderProducts();
     setActiveFilter();
   });
-}
-
-function updatePageHeader() {
-  const title = document.getElementById('pageTitle');
-  const subtitle = document.getElementById('pageSubtitle');
-  
-  const categoryNames = {
-    'electronics': 'Electronics',
-    'kitchen': 'Kitchen Items',
-    'beauty': 'Beauty Products',
-    'household': 'Household Products',
-    'packaging': 'Packaging Materials',
-    'industrial': 'Industrial Items'
-  };
-  
-  if (categoryFilter && categoryNames[categoryFilter]) {
-    title.textContent = categoryNames[categoryFilter];
-    subtitle.textContent = 'Bulk wholesale ' + categoryFilter + ' products';
-  } else if (searchQuery) {
-    title.textContent = 'Search Results';
-    subtitle.textContent = 'Results for: "' + searchQuery + '"';
-  } else {
-    title.textContent = 'All Products';
-    subtitle.textContent = 'Browse our complete wholesale catalog';
-  }
 }
 
 function setActiveFilter() {
@@ -75,37 +49,38 @@ function renderProducts() {
   if (!container) return;
   
   let filtered = allProducts;
-  if (categoryFilter && categoryFilter !== 'all') {
-    filtered = allProducts.filter(p => p.category === categoryFilter);
-  }
+  if (categoryFilter && categoryFilter !== 'all') filtered = allProducts.filter(p => p.category === categoryFilter);
   if (searchQuery) {
     const q = searchQuery.toLowerCase();
     filtered = filtered.filter(p => p.title.toLowerCase().includes(q) || p.category.toLowerCase().includes(q));
   }
   
-  document.getElementById('resultCount').innerHTML = 'Showing <span>' + filtered.length + '</span> products';
+  document.getElementById('resultCount').innerHTML = 'Showing <strong>' + filtered.length + '</strong> products';
   
   if (filtered.length === 0) {
-    container.innerHTML = `
-      <div style="text-align:center;grid-column:1/-1;padding:4rem;background:white;border-radius:1rem;">
-        <i class="fas fa-search" style="font-size:4rem;color:#cbd5e1;"></i>
-        <h3>No Products Found</h3>
-        <p>Try different category or search</p>
-        <a href="products.html" class="btn btn-primary" style="margin-top:1rem;">Show All</a>
-      </div>`;
+    container.innerHTML = `<div class="no-products" style="grid-column:1/-1;"><i class="fas fa-search" style="font-size:3rem;color:#d1d5db;"></i><h3>No Products</h3><a href="products.html" class="btn btn-primary" style="margin-top:1rem;">Show All</a></div>`;
     return;
   }
   
   container.innerHTML = filtered.map(p => `
-    <div class="product-card" onclick="goToDetail('${p.id}')" style="cursor:pointer;">
-      <div class="product-img">${p.img || '📦'}</div>
-      <div class="product-info">
-        <span class="moq-badge">${p.moq || 'MOQ Available'}</span>
-        <div class="product-title">${p.title}</div>
-        <div class="rating">${'★'.repeat(Math.floor(p.rating||0))} (${p.reviews||0})</div>
-        <div class="price-range">${p.price || 'Contact'}</div>
-        <button class="btn btn-primary btn-full" onclick="event.stopPropagation();goToDetail('${p.id}')">View Details</button>
-        <button class="btn btn-accent btn-full" onclick="event.stopPropagation();orderNow('${p.id}','${escapeStr(p.title)}')" style="margin-top:0.5rem;">WhatsApp Order</button>
+    <div class="deal-card" onclick="goToDetail('${p.id}')">
+      <div class="deal-img">
+        ${p.img || '📦'}
+        <span class="deal-badge">TOP DEAL</span>
+        ${p.rating >= 4.8 ? '<span class="hot-badge">HOT</span>' : ''}
+      </div>
+      <div class="deal-info">
+        <div class="deal-title">${p.title}</div>
+        <div class="deal-price">${p.price || 'Contact'}</div>
+        <div class="deal-moq">${p.moq || 'Flexible MOQ'}</div>
+        <div class="deal-sold">
+          <i class="fas fa-star" style="color:#f59e0b;"></i> ${p.rating||'4.5'} 
+          <span style="margin:0 0.5rem;">|</span>
+          <i class="fas fa-shopping-cart"></i> ${p.reviews||0} orders
+        </div>
+        <div class="deal-supplier">${p.supplier || 'Verified Supplier'}</div>
+        <button class="btn btn-primary btn-full" onclick="event.stopPropagation();goToDetail('${p.id}')" style="margin-top:0.5rem;">View Details</button>
+        <button class="btn btn-accent btn-full" onclick="event.stopPropagation();orderNow('${p.id}','${escapeStr(p.title)}')" style="margin-top:0.3rem;"><i class="fab fa-whatsapp"></i> Contact Supplier</button>
       </div>
     </div>
   `).join('');
@@ -116,12 +91,11 @@ function escapeStr(s) { return s.replace(/'/g,"\\'").replace(/"/g,'\\"'); }
 
 function orderNow(id, title) {
   const phone = '15551234567';
-  const msg = `🛒 Order: ${title} (ID:${id})`;
+  const msg = `🛒 Interested in: ${title} (ID:${id})\nPlease send best price & MOQ.`;
   database.ref('orders').push({ productId:id, productTitle:title, status:'new', createdAt:firebase.database.ServerValue.TIMESTAMP });
   window.open(`https://wa.me/${phone}?text=${encodeURIComponent(msg)}`, '_blank');
 }
 
-// Filter buttons
 document.querySelectorAll('.filter-btn').forEach(btn => {
   btn.addEventListener('click', function() {
     const cat = this.dataset.category;
@@ -129,39 +103,41 @@ document.querySelectorAll('.filter-btn').forEach(btn => {
   });
 });
 
-// Search
 document.getElementById('productSearchBtn')?.addEventListener('click', () => {
   const q = document.getElementById('productSearchInput').value.trim();
   if(q) location.href = 'products.html?search=' + encodeURIComponent(q);
 });
 
-// Auth functions
-function openModal(id) { document.getElementById(id).classList.add('active'); }
-function closeModal(id) { document.getElementById(id).classList.remove('active'); }
-function loginWithEmail() {
-  const e = document.getElementById('loginEmail').value.trim();
-  const p = document.getElementById('loginPassword').value;
-  if(!e||!p) return alert('Fill fields');
-  auth.signInWithEmailAndPassword(e,p).then(()=>{closeModal('loginModal');if(e==='purevalue185@gmail.com')location.href='admin.html';}).catch(err=>alert(err.message));
-}
-function signupWithEmail() {
-  const n = document.getElementById('signupName').value.trim();
-  const e = document.getElementById('signupEmail').value.trim();
-  const p = document.getElementById('signupPassword').value;
-  if(!n||!e||!p) return alert('Fill fields');
-  if(p.length<6) return alert('Password 6+ chars');
-  auth.createUserWithEmailAndPassword(e,p).then(r=>r.user.updateProfile({displayName:n})).then(()=>{closeModal('signupModal');alert('Created!');}).catch(err=>alert(err.message));
-}
-function loginWithGoogle() { auth.signInWithPopup(new firebase.auth.GoogleAuthProvider()).then(()=>closeModal('loginModal')).catch(()=>{}); }
-function signupWithGoogle() { auth.signInWithPopup(new firebase.auth.GoogleAuthProvider()).then(()=>closeModal('signupModal')).catch(()=>{}); }
-function logout() { auth.signOut(); }
+document.getElementById('productSearchInput')?.addEventListener('keypress', (e) => {
+  if (e.key === 'Enter') {
+    const q = e.target.value.trim();
+    if(q) location.href = 'products.html?search=' + encodeURIComponent(q);
+  }
+});
 
 document.getElementById('hamburgerBtn')?.addEventListener('click',()=>document.getElementById('navLinks').classList.toggle('show'));
+
+window.openModal=function(id){document.getElementById(id).classList.add('active');};
+window.closeModal=function(id){document.getElementById(id).classList.remove('active');};
+window.loginWithEmail=function(){
+  const e=document.getElementById('loginEmail').value.trim();
+  const p=document.getElementById('loginPassword').value;
+  if(!e||!p) return alert('Fill fields');
+  auth.signInWithEmailAndPassword(e,p).then(()=>{closeModal('loginModal');if(e==='purevalue185@gmail.com')location.href='admin.html';}).catch(err=>alert(err.message));
+};
+window.signupWithEmail=function(){
+  const n=document.getElementById('signupName').value.trim();
+  const e=document.getElementById('signupEmail').value.trim();
+  const p=document.getElementById('signupPassword').value;
+  if(!n||!e||!p) return alert('Fill fields');
+  if(p.length<6) return alert('Password 6+ chars');
+  auth.createUserWithEmailAndPassword(e,p).then(r=>r.user.updateProfile({displayName:n})).then(()=>{closeModal('signupModal');alert('Welcome!');}).catch(err=>alert(err.message));
+};
+window.loginWithGoogle=function(){auth.signInWithPopup(new firebase.auth.GoogleAuthProvider()).then(()=>closeModal('loginModal')).catch(()=>{});};
+window.signupWithGoogle=function(){auth.signInWithPopup(new firebase.auth.GoogleAuthProvider()).then(()=>closeModal('signupModal')).catch(()=>{});};
+window.logout=function(){auth.signOut();};
+window.goToDetail=goToDetail;
+window.orderNow=orderNow;
+
 document.querySelectorAll('.modal').forEach(m=>m.addEventListener('click',function(e){if(e.target===this)this.classList.remove('active');}));
-
-window.openModal=openModal; window.closeModal=closeModal;
-window.loginWithEmail=loginWithEmail; window.signupWithEmail=signupWithEmail;
-window.loginWithGoogle=loginWithGoogle; window.signupWithGoogle=signupWithGoogle;
-window.logout=logout; window.goToDetail=goToDetail; window.orderNow=orderNow;
-
 document.addEventListener('DOMContentLoaded', loadProducts);
